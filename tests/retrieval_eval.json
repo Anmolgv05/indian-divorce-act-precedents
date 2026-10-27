@@ -1,0 +1,74 @@
+[
+  {
+    "topic": "desertion",
+    "query": "husband alleges wife deserted him for three years without reasonable cause",
+    "keyword_regex": "desert",
+    "expected_primary_grounds": ["desertion"]
+  },
+  {
+    "topic": "adultery",
+    "query": "wife seeks divorce on ground of husband living in adultery",
+    "keyword_regex": "adulter",
+    "expected_primary_grounds": ["adultery"]
+  },
+  {
+    "topic": "cruelty",
+    "query": "husband treated wife with physical and mental cruelty making cohabitation impossible",
+    "keyword_regex": "cruel",
+    "expected_primary_grounds": ["cruelty"]
+  },
+  {
+    "topic": "non_consummation",
+    "query": "marriage not consummated due to respondent wilful refusal",
+    "keyword_regex": "consummat",
+    "expected_primary_grounds": ["non_consummation", "nullity_sec19"]
+  },
+  {
+    "topic": "conversion",
+    "query": "husband ceased to be Christian and converted to another religion",
+    "keyword_regex": "conver(t|sion)",
+    "expected_primary_grounds": ["conversion"]
+  },
+  {
+    "topic": "unsound_mind",
+    "query": "incurable unsound mind and mental disorder for two years",
+    "keyword_regex": "unsound|mental|schizop",
+    "expected_primary_grounds": ["unsound_mind"]
+  },
+  {
+    "topic": "nullity",
+    "query": "petition for declaration of nullity of marriage under section 19",
+    "keyword_regex": "nullity",
+    "expected_primary_grounds": ["nullity_sec19"]
+  },
+  {
+    "topic": "confirmation_of_decree",
+    "query": "reference under section 17 for confirmation of decree for dissolution",
+    "keyword_regex": "confirm|section 17",
+    "expected_primary_grounds": ["procedural", "adultery", "cruelty", "desertion"]
+  },
+  {
+    "topic": "mutual_consent",
+    "query": "joint petition under section 10A for dissolution of marriage by mutual consent",
+    "keyword_regex": "mutual consent|section 10-?a|joint petition",
+    "expected_primary_grounds": ["mutual_consent_10A"]
+  },
+  {
+    "topic": "judicial_separation",
+    "query": "petition for decree of judicial separation on ground of cruelty or adultery",
+    "keyword_regex": "judicial separation",
+    "expected_primary_grounds": ["cruelty", "adultery", "desertion", "procedural"]
+  },
+  {
+    "topic": "restitution",
+    "query": "restitution of conjugal rights under section 32 without reasonable excuse",
+    "keyword_regex": "restitution|conjugal rights",
+    "expected_primary_grounds": ["restitution_non_compliance", "desertion", "cruelty"]
+  },
+  {
+    "topic": "transfer",
+    "query": "transfer petition under section 24 CPC to transfer divorce proceedings",
+    "keyword_regex": "transfer",
+    "expected_primary_grounds": ["procedural"]
+  }
+]

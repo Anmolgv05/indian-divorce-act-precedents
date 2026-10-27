@@ -1,0 +1,12 @@
+.sum{margin:0 0 28px;padding:18px 22px 14px;background:var(--ab-soft,#ece4d3);border-left:4px solid var(--ab-accent,#7a1f1f);border-radius:2px}
+.sum-head{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px}
+.sum h2{font-family:Georgia,"Times New Roman",serif;font-size:1.15rem;margin:0}
+.sum-badge{font-size:.78rem;color:var(--ab-mute,#6b655b);border:1px solid var(--ab-line,#d9d0bf);padding:1px 8px;border-radius:99px}
+.sum p{margin:.7em 0;line-height:1.65;max-width:68ch}
+.sum-wait{color:var(--ab-mute,#6b655b)}
+.sum-caveat{font-size:.82rem;color:var(--ab-mute,#6b655b)}
+.sum a{color:var(--ab-accent,#7a1f1f)}
+.sum-cite{display:inline-block;min-width:1.4em;padding:0 .3em;margin:0 .1em;text-align:center;font-size:.78em;font-weight:700;border:1px solid currentColor;border-radius:4px;text-decoration:none;vertical-align:.1em}
+.sum-cite:hover{background:var(--ab-accent,#7a1f1f);color:#fff}
+.sum a:focus-visible{outline:3px solid currentColor;outline-offset:2px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}

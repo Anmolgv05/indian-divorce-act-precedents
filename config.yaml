@@ -1,0 +1,34 @@
+# Configuration for Section 10 Indian Divorce Act Case Search
+
+scraping:
+  shard_id: 0
+  shard_count: 3
+  delay_seconds: 2.0
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) CourseworkResearch/1.0 (academic research project; contact: student@edu)"
+  timeout_seconds: 15
+  max_retries: 3
+  backoff_factor: 2.0
+
+paths:
+  data_dir: "data"
+  urls_file: "data/urls.txt"
+  raw_dir: "data/raw"
+  shards_dir: "data/shards"
+  parsed_dir: "data/parsed"
+  labeled_file: "data/labeled/cases.jsonl"
+  index_dir: "data/index"
+  embeddings_file: "data/index/embeddings.npy"
+  meta_file: "data/index/meta.parquet"
+  reports_dir: "reports"
+  validation_report: "reports/validation.md"
+  scrape_failures: "reports/scrape_failures.txt"
+
+models:
+  embedding_model: "BAAI/bge-small-en-v1.5"
+  fallback_embedding_model: "all-MiniLM-L6-v2"
+  zeroshot_model: "cross-encoder/nli-deberta-v3-small"
+
+app:
+  title: "Section 10 Indian Divorce Act Case Search"
+  host: "127.0.0.1"
+  port: 7860

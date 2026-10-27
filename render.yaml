@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: section10-divorce-search
+    runtime: python
+    plan: free
+    buildCommand: "pip install --no-cache-dir -r requirements.txt"
+    startCommand: "python api.py"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.10
+      - key: PYTHONPATH
+        value: .
+      - key: SUMMARY_LLM
+        value: "0"
+      - key: FULLTEXT
+        value: "1"

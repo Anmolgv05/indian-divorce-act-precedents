@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Data directories (gitignored except labeled/, index/ and parsed/)
+data/raw/
+data/shards/
+data/urls.txt
+data/urls_shard_*.txt
+
+# Secrets & Environment variables
+.env
+.env.*
+
+# OS & IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Build & test caches
+.pytest_cache/
+
+# Frontend
+frontend/node_modules/
+frontend_old/
+
+# Temporary / patch packages
+files/
+*.zip
+patch_*.py
