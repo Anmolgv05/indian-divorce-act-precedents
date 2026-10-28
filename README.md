@@ -318,7 +318,7 @@ The search engine augments search results with actionable practice intelligence:
 
 The entire audited dataset, precomputed indices, and audit reports are published on Hugging Face:
 
-📦 **Dataset Hub**: [https://huggingface.co/datasets/anabaena/section10-divorce-corpus](https://huggingface.co/datasets/anabaena/section10-divorce-corpus)
+📦 **Dataset Hub**: [https://huggingface.co/datasets/anmolgv/section10-divorce-corpus](https://huggingface.co/datasets/anmolgv/section10-divorce-corpus)
 
 ### Loading with Python
 
@@ -327,12 +327,12 @@ import pandas as pd
 from datasets import load_dataset
 
 # 1. Load the 429 audited labeled cases
-cases_df = pd.read_json("hf://datasets/anabaena/section10-divorce-corpus/data/labeled/cases.jsonl", lines=True)
+cases_df = pd.read_json("hf://datasets/anmolgv/section10-divorce-corpus/data/labeled/cases.jsonl", lines=True)
 print(f"Loaded {len(cases_df)} labeled cases")
 print(cases_df[["doc_id", "title", "primary_ground", "disposal", "marriage_dissolved"]].head())
 
 # 2. Load the 13,263 precomputed chunk metadata records
-meta_df = pd.read_parquet("hf://datasets/anabaena/section10-divorce-corpus/data/index/meta.parquet")
+meta_df = pd.read_parquet("hf://datasets/anmolgv/section10-divorce-corpus/data/index/meta.parquet")
 print(f"Loaded {len(meta_df)} chunks across {meta_df['doc_id'].nunique()} judgments")
 ```
 
