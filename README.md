@@ -357,7 +357,7 @@ render blueprints deploy
 ### Option 2: Via Render Dashboard (One-Click)
 1. Go to [dashboard.render.com](https://dashboard.render.com).
 2. Click **New** &rarr; **Blueprint**.
-3. Select your GitHub repository: `darayavahoush/indian-divorce-act-precedents`.
+3. Select your GitHub repository: `Anmolgv05/indian-divorce-act-precedents`.
 4. Render will parse `render.yaml`, install Python dependencies from `requirements.txt`, and serve the production web application on Uvicorn.
 
 ---
@@ -370,7 +370,7 @@ render blueprints deploy
 
 ### 1. Clone & Set Up Backend
 ```bash
-git clone https://github.com/darayavahoush/indian-divorce-act-precedents.git
+git clone https://github.com/Anmolgv05/indian-divorce-act-precedents.git
 cd indian-divorce-act-precedents
 
 # Create virtual environment
