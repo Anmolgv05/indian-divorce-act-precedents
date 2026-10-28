@@ -3,25 +3,25 @@
 Implements the 17 schema parameters requested by the user:
 1. Court
 2. Case Title
-3. Case Number
+3. Case Number (Strictly formal court docket number or blank; reporting citations removed)
 4. Judgment Date
-5. Judges
+5. Judges (Strictly clean names ending in J. or C.J.; no indicators)
 6. Acts Cited
 7. Sections Cited
 8. Legal Topics
-9. Outcome
-10. Fact/ Petitioner
-11. Fact/ Respondent
+9. Outcome (Strictly accurate; no truthiness contradictions)
+10. Fact/ Petitioner (Substantive facts; no court/coram headers)
+11. Fact/ Respondent (Substantive defense; no counsel address boilerplate)
 12. Issues
 13. Petitioner Argument
 14. Respondent Argument
-15. Factors to be Considered
-16. Decision
+15. Factors to be Considered (Doctrinal legal ratios & Section 10/10A tests)
+16. Decision (Pure operative court holding; no clerk/signature noise)
 17. Citation link/citation number/Drive link
 
 Plus Advocate Review & Quality Control Columns:
 18. Review (Status: Verified, Pending Advocate Review, Needs Review)
-19. Review Issues (Empty column for advocates to log issues/feedback, or QC notes)
+19. Review Issues (Notes on parallel duplicate records or pending items)
 20. Reviewed By (Advocate / Reviewer name)
 
 Plus enriched metadata parameters:
@@ -32,7 +32,7 @@ Plus enriched metadata parameters:
 25. Marriage Dissolved
 26. Legal Era (Pre-2001 vs Post-2001)
 27. Substantive Adjudication
-28. Equivalent Citations
+28. Equivalent Citations (Official law report citations like AIR, SCC, MLJ)
 29. Kanoon Doc ID
 30. Canonical Source URL
 31. Chunks Indexed
@@ -100,52 +100,85 @@ def clean_case_title(title, full_text):
     return title
 
 
-def extract_case_number(title, full_text, citations, doc_id=""):
+def is_citation_string(text):
+    """Detect if a text token is an official law reporter citation or Kanoon doc ID."""
+    if not text:
+        return False
+    t = text.upper()
+    prefixes = [
+        "AIR", "SCC", "SCR", "KLT", "MLJ", "ILR", "DMC", "BOM", "CAL", "DEL",
+        "ALL", "BLJR", "CTC", "MHLJ", "BOMLR", "RECCIVR", "MARRILJ", "CWN",
+        "ALL WC", "ALL LR", "DOC #"
+    ]
+    return any(p in t for p in prefixes)
+
+
+docket_patterns = [
+    # 1. Neutral Citation: e.g. 2026:JHHC:20890-DB, 2023:AHC:225491
+    r"\b(\d{4}\s*:\s*[A-Z\-]+\s*:\s*\d+(?:-[A-Z]+)?)\b",
+    # 2. Specific Indian Matrimonial / Appeal docket patterns with word boundaries
+    r"\b((?:O\.?\s*P\.?(?:\s*\([A-Z\.\s&]+\))?|MAT\.?\s*APP(?:EAL)?\.?(?:\s*\([A-Z\.\s&]+\))?|MATRIMONIAL APPEAL|FIRST APPEAL|F\.?A\.?(?:\s*\(O&M\))?|F\.?A\.?O\.?(?:\s*\([A-Z\.\s&]+\))?|CIVIL APPEAL|M\.?F\.?A\.?|WRIT PETITION(?:\s*\([A-Z\.\s]+\))?|W\.?P\.?(?:\s*\([A-Z\.\s]+\))?|C\.?R\.?P\.?|C\.?M\.?A\.?|M\.?A\.?|F\.?C\.?A\.?|F\.?C\.?O\.?P\.?|D\.?O\.?P\.?|I\.?D\.?O\.?P\.?|M\.?O\.?P\.?|TRP\s*\([A-Z\.\s]+\)|TRANSFER (?:APPLICATION|PETITION)(?:\s*\([A-Z\.\s]+\))?|ORIGINAL (?:PETITION|SUIT)|MATRIMONIAL (?:SUIT|PETITION|CASE|REFERENCE)|DIVORCE (?:SUIT|PETITION|CASE)|SPECIAL LEAVE PETITION(?:\s*\([A-Z\.\s]+\))?|C\.?A\.?|S\.?L\.?P\.?(?:\s*\([A-Z\.\s]+\))?|CIVIL (?:REVISION|REFERENCE))\s*(?:No\.?|Number|#)?\s*[:\.]?\s*\d+[/0-9\-]*(?:\s*(?:of|/|-)\s*\d{2,4})?(?:\s*\([A-Z&/0-9\.\s]+\))?)\b",
+    # 3. Specific Family Court / Trial Court Suit / Petition
+    r"\b((?:Family Court\s+)?(?:Case|Suit|Appeal|Petition|Ref\.?|Reference)\s*(?:No\.?|#)\s*[:\.]?\s*\d+[/0-9\-]*(?:\s*(?:of|/)\s*\d{2,4}))\b",
+    # 4. Standalone No. ... of 19xx/20xx
+    r"\b(No\.\s*\d+[/0-9\-]*\s+of\s+\d{4})\b"
+]
+
+
+def extract_case_number(title, full_text):
+    """Extract strictly genuine court case numbers; return blank if only reporting citation exists."""
     full_text = full_text or ""
     title = title or ""
 
-    m_split = re.split(r"\n\s*(?:JUDGMENT|ORDER|Date of Decision|REPORTABLE|ORAL ORDER)\b", full_text[:2500], flags=re.I)
-    header = m_split[0] if (len(m_split) > 1 and len(m_split[0].strip()) > 10) else full_text[:1500]
+    # Priority 1: Neutral Citation (e.g. 2026:JHHC:20890-DB, 2023:AHC:225491)
+    m_neut = re.search(r"\b(\d{4}\s*:\s*[A-Z\-]+\s*:\s*\d+(?:-[A-Z]+)?)\b", full_text[:4000])
+    if m_neut:
+        return m_neut.group(1).strip()
 
-    docket_patterns = [
-        # Neutral Citation: e.g. 2026:JHHC:20890-DB or 2024:DHC:1234
-        r"\b(\d{4}\s*:\s*[A-Z\-]+\s*:\s*\d+(?:-[A-Z]+)?)\b",
-        # Specific Indian Matrimonial / Appeal docket patterns with word boundaries
-        r"\b((?:O\.?\s*P\.?(?:\s*\([A-Z\.\s&]+\))?|MAT\.?\s*APP(?:EAL)?\.?(?:\s*\([A-Z\.\s&]+\))?|MATRIMONIAL APPEAL|FIRST APPEAL|F\.?A\.?(?:\s*\(O&M\))?|F\.?A\.?O\.?(?:\s*\([A-Z\.\s&]+\))?|CIVIL APPEAL|M\.?F\.?A\.?|WRIT PETITION(?:\s*\([A-Z\.\s]+\))?|W\.?P\.?(?:\s*\([A-Z\.\s]+\))?|C\.?R\.?P\.?|ORIGINAL SUIT|MATRIMONIAL SUIT|DIVORCE SUIT|TRANSFER PETITION|SPECIAL LEAVE PETITION|C\.?A\.?|S\.?L\.?P\.?|CIVIL REVISION)\s*(?:No\.?|Number|#)?\s*[:\.]?\s*\d+[/0-9\-]*(?:\s*(?:of|/|-)\s*\d{2,4})?(?:\s*\([A-Z&/0-9\.\s]+\))?)\b",
-        # General Suit / Appeal / Case No. with of/year: e.g. Suit No. 3 of 1997, Case No. 184 of 2025
-        r"\b((?:Case|Suit|Appeal|Petition|Ref\.?|Reference)\s*(?:No\.?|#)\s*[:\.]?\s*\d+[/0-9\-]*(?:\s*(?:of|/)\s*\d{2,4}))\b",
-        # Standalone No. 123 of 2015
-        r"\b(No\.\s*\d+[/0-9\-]*\s+of\s+\d{4})\b"
-    ]
+    # Priority 2: Header lines before JUDGMENT or ORDER
+    m_split = re.split(r"\n\s*(?:JUDGMENT|ORDER|Date of Decision|REPORTABLE|ORAL ORDER)\b", full_text[:3500], flags=re.I)
+    header = m_split[0] if (len(m_split) > 1 and len(m_split[0].strip()) > 10) else full_text[:2000]
 
     for pat in docket_patterns:
-        m = re.search(pat, header, re.IGNORECASE)
-        if m:
+        for m in re.finditer(pat, header, re.IGNORECASE):
             clean = re.sub(r"\s+", " ", m.group(1)).strip()
-            # Guard against English words starting with 'op'
-            if not any(bad in clean.lower() for bad in ("opinion", "propriety", "development", "scope", "people", "opportunity", "operation", "oppose", "option")):
+            if not any(bad in clean.lower() for bad in ("opinion", "propriety", "development", "scope", "people", "opportunity", "operation", "oppose", "option", "section 10")):
                 words = clean.split()
                 if len(words) <= 8 and any(char.isdigit() for char in clean):
-                    return clean
+                    if not is_citation_string(clean):
+                        return clean
 
-    # Check title itself for docket numbers in brackets
-    m_title = re.search(r"\(([^)]*(?:No\.?|Appeal|Suit|O\.?\s*P\.?|F\.?A\.?)[^)]*\d+[^)]*)\)", title, re.I)
+    # Priority 3: Title bracketed docket
+    m_title = re.search(r"\(([^)]*(?:No\.?|Appeal|Suit|O\.?\s*P\.?|F\.?A\.?|M\.?F\.?A\.?)[^)]*\d+[^)]*)\)", title, re.I)
     if m_title:
         clean = re.sub(r"\s+", " ", m_title.group(1)).strip()
         if len(clean.split()) <= 7 and any(char.isdigit() for char in clean):
-            return clean
+            if not is_citation_string(clean):
+                return clean
 
-    # Clean Law Report Citation
-    cit = clean_citation(citations)
-    if cit:
-        return cit
+    # Priority 4: Concluding paragraph docket (e.g. "FCA No. 143 of 2014 is dismissed")
+    tail = full_text[-2500:]
+    for pat in docket_patterns:
+        for m in re.finditer(pat, tail, re.IGNORECASE):
+            clean = re.sub(r"\s+", " ", m.group(1)).strip()
+            if not any(bad in clean.lower() for bad in ("opinion", "propriety", "development", "scope", "people", "opportunity", "operation", "section 10")):
+                words = clean.split()
+                if len(words) <= 8 and any(char.isdigit() for char in clean):
+                    if not is_citation_string(clean):
+                        return clean
 
-    # Fallback: Kanoon doc identifier with year
-    m_yr = re.search(r"on\s+\d{1,2}\s+[A-Za-z]+,?\s+(\d{4})", title)
-    yr = m_yr.group(1) if m_yr else ""
-    if yr and doc_id:
-        return f"Doc #{doc_id} ({yr})"
-    return f"Doc #{doc_id}" if doc_id else "Not specified"
+    # Priority 5: Opening paragraphs trial / appeal docket (first 6000 chars)
+    for pat in docket_patterns:
+        for m in re.finditer(pat, full_text[:6000], re.IGNORECASE):
+            clean = re.sub(r"\s+", " ", m.group(1)).strip()
+            if not any(bad in clean.lower() for bad in ("opinion", "propriety", "development", "scope", "people", "opportunity", "operation", "section 10")):
+                words = clean.split()
+                if len(words) <= 8 and any(char.isdigit() for char in clean):
+                    if not is_citation_string(clean):
+                        return clean
+
+    # Safety: Return blank rather than reporting citations
+    return ""
 
 
 def format_judge_name(name, title="J."):
@@ -159,7 +192,6 @@ def format_judge_name(name, title="J."):
     if m_end:
         name = name[:m_end.start()].strip()
         norm_title = "C.J." if "C" in m_end.group(1).upper() else ("JJ." if "JJ" in m_end.group(1).upper() else "J.")
-    # Support Supreme Court "PATHAK, R.S." format
     if "," in name:
         parts = [p.strip() for p in name.split(",") if p.strip()]
         if len(parts) == 2 and len(parts[1]) <= 6:
@@ -179,7 +211,7 @@ def extract_judges(full_text):
 
     found = []
 
-    # 1. Supreme Court BENCH: format (e.g. BENCH:\nPATHAK, R.S.\nREDDY, O. CHINNAPPA (J))
+    # 1. Supreme Court BENCH: format
     m_sc_bench = re.search(r"BENCH:\s*\n+([A-Z\.,\s\(\)]+?)(?:\n\s*CITATION|\n\s*ACT:|\n\s*HEADNOTE:|\n\s*JUDGMENT)", sample, re.I)
     if m_sc_bench:
         lines = [line.strip() for line in m_sc_bench.group(1).split("\n") if line.strip()]
@@ -192,7 +224,7 @@ def extract_judges(full_text):
         if found:
             return ", ".join(list(dict.fromkeys(found)))
 
-    # 2. Coram / Bench header block (e.g. Coram:\nJustice P. Sathasivam\nand\nJustice K. Gnanaprakasam)
+    # 2. Coram / Bench header block
     m_coram = re.search(r"(?:CORAM|BENCH|PRESENT)\s*[:\n]\s*([^\n\r]+(?:\n[^\n\r]+){0,4})", sample, re.I)
     if m_coram:
         block = m_coram.group(1)
@@ -245,7 +277,7 @@ def extract_judges(full_text):
         if found:
             return ", ".join(list(dict.fromkeys(found))[:3])
 
-    # 5. End-of-judgment signatures (e.g. [p_155] BILAL NAZKI, J.\n[p_156] S.A. BOBDE, J.)
+    # 5. End-of-judgment signatures
     m_tail_judges = re.findall(r"(?:^|\n)\s*(?:(?:HON'\''?BLE\s+)?(?:SRI|SMT\.|MR\.|MRS\.|MS\.)?\s*JUSTICE\s+)?([A-Z][A-Za-z\.\s]{2,25})\s*,\s*(C\.?J\.?|J\.?|JJ\.?)\s*(?:\n|$)", tail)
     if m_tail_judges:
         for name, title in m_tail_judges:
@@ -333,7 +365,6 @@ def clean_fact_paragraph(text):
     if not text:
         return ""
     text = strip_tags(text)
-    # Strip (Judgment of the Court was made by ...)
     text = re.sub(r"^\([^)]*(?:Judgment|Order)[^)]*\)\s*", "", text, flags=re.I)
     lines = text.split("\n")
     cleaned_lines = []
@@ -408,57 +439,101 @@ def extract_respondent_facts(case, parsed_doc, pet_fact_text):
     return f"Respondent contested the petition, denying allegations of {primary_g} under Section 10 and submitting that no statutory grounds exist for dissolving the marriage."
 
 
-def clean_decision_paragraph(text):
+def is_noise_paragraph(text):
+    """Identify clerk initials, court reporter notes, footers, or transmission directives."""
     if not text:
-        return ""
-    text = strip_tags(text)
-    lines = text.split("\n")
-    cleaned = []
+        return True
+    t = strip_tags(text).strip()
+    if len(t) <= 4:
+        return True
+    if re.search(r"\bSd/-\b|\(?sd/-\)?", t, re.I):
+        if len(t.split()) <= 15 and re.search(r"\b(?:JUDGE|JUSTICE|ADVOCATE|COUNSEL)\b", t, re.I):
+            return True
+    if re.search(r"^[_ \t\-\=]{3,}", t):
+        return True
+    if re.match(r"^(?:ul/|PLV|RPD|Mrcs/|ma/\d|DST/|True Copy|Date\s*:|\d{1,2}[\.\/]\d{1,2}[\.\/]\d{2,4})", t, re.I) and len(t.split()) <= 6:
+        return True
+    if re.match(r"^(?:To\b|Copy to\b|\d+\.\s*The\s+(?:District|Sessions|Family|Principal|High)\s+Court)", t, re.I):
+        return True
+    if re.search(r"\bThe\s+(?:District|Sessions)\s+Court\b", t, re.I) and len(t.split()) <= 10:
+        return True
+    if re.search(r"\b(?:transmit the (?:entire\s+)?records?|send (?:down|back) the (?:lower\s+)?court records?|lower court records? be (?:returned|sent)|registry is directed to communicate|forward a copy of (?:the|this) judgment to the (?:Union\s+)?Ministry of Law|law framing authorities|recommendation to the legislature)\b", t, re.I):
+        return True
+    if re.match(r"^(?:(?:There shall be\s+)?no\s+order\s+as\s+to\s+costs?\.?|Parties (?:shall\s+)?bear their own costs?\.?|No costs?\.?)$", t, re.I):
+        return True
+    if re.match(r"^(?:All (?:connected|pending) (?:applications?|miscellaneous petitions?|C\.?M\.?s?)\s*(?:are|stand)\s*(?:disposed of|closed)\.?|As a sequel thereto.*stand closed\.?)$", t, re.I):
+        return True
+    if re.match(r"^(?:(?:The\s+)?(?:reference|matter|petition)\s*is\s*(?:ordered|answered|disposed of)\s*accordingly\.?|Ordered accordingly\.?|Order accordingly\.?|\(Reported in [^)]+\)\.?)$", t, re.I):
+        return True
+    if re.search(r"\b(?:True copy of\s+\^?Aadhar|Counsel for Petitioner|Counsel for Respondent|FSO VERIF|EXHIBIT\s+[A-Z0-9]+|RESPONDENT'\''S\s+EXHIBITS|PETITIONER'\''S\s+EXHIBITS|LIST OF DOCUMENTS)\b", t, re.I):
+        return True
+    lines = [l.strip() for l in t.split("\n") if l.strip()]
+    if all(re.search(r"\b(?:JUSTICE|JUDGE|C\.?J\.?|J\.?|JJ\.?|HON'\''BLE|ADVOCATE|COUNSEL)\b", l, re.I) or re.search(r"^[_ \t\-\=]{3,}", l) or len(l.split()) <= 4 for l in lines) and len(t.split()) <= 15:
+        return True
+    return False
+
+
+def clean_decision_text(text):
+    """Clean clerk signatures, date footers, or trailing reporting lines from operative decree."""
+    t = strip_tags(text).strip()
+    m_cut = re.search(r"(?:\n\s*|\s{2,}|\s+)\(?(?:sd/-|//\s*true copy|True Copy|P\.?S\.? to Judge|(?:Order\s+)?Date\s*[:-]|\(ALLOWED\)|\(DISMISSED\)|RPD\b|C\.?M\.?A\.?\s*NO|THE HONOURABLE|HON'\''BLE|\d{2}\.\d{2}\.\d{4}\s+[a-z]+\s+Index)", t, re.I)
+    if m_cut:
+        t = t[:m_cut.start()].strip()
+    lines = t.split("\n")
+    clean_lines = []
     for l in lines:
         line = l.strip()
         if not line:
             continue
         if re.search(r"^[_ \t\-\=]{3,}", line):
             continue
-        if re.search(r"\bSd/-\b", line, re.I):
+        if re.search(r"\bSd/-\b|\(?sd/-\)?", line, re.I):
             continue
-        if re.search(r"^(?:(?:TRUE\s+)?COPY|REGISTRAR|COURT MASTER|ORDERED ACCORDINGLY)\b", line, re.I):
-            continue
-        if re.match(r"^\((?:Reported in|19\d\d|20\d\d)[^)]+\)$", line, re.I):
-            continue
-        if re.search(r"\b(?:C\.?J\.?|J\.?|JJ\.?)\b", line) and len(line.split()) <= 5:
-            continue
-        cleaned.append(line)
-    return " ".join(cleaned).strip()
+        clean_lines.append(line)
+    cleaned = " ".join(clean_lines).strip()
+    cleaned = re.sub(r"\s*(?:There shall be no order as to costs?\.?|No order as to costs?\.?|No costs?\.?|Parties shall bear their own costs?\.?)\s*$", "", cleaned, flags=re.I).strip()
+    cleaned = re.sub(r"\s*(?:Ordered accordingly\.?|Order accordingly\.?|Reference is answered accordingly\.?)\s*$", "", cleaned, flags=re.I).strip()
+    return cleaned
 
 
-def extract_decision_operative(case, parsed_doc, outcome):
-    """Scan judgment tail backwards to extract the true operative decree."""
+def extract_decision(case, parsed_doc, outcome):
+    """Extract pure substantive operative decree, eliminating all footer/signature/clerk noise."""
     paragraphs = parsed_doc.get("paragraphs", [])
+    if not paragraphs:
+        return f"The Court passed final judgment: {outcome}."
 
-    tail_paras = paragraphs[-6:] if len(paragraphs) >= 6 else paragraphs
-    for p in reversed(tail_paras):
-        p_text = clean_decision_paragraph(p.get("text", ""))
-        if not p_text or len(p_text.split()) < 4:
+    tail_candidates = paragraphs[-15:] if len(paragraphs) >= 15 else paragraphs
+    decree_pat = r"\b(?:in the result|the appeal is (?:hereby\s+)?(?:allowed|dismissed|partly allowed)|the petition is (?:hereby\s+)?(?:allowed|dismissed)|decree (?:of|for) (?:dissolution|divorce|nullity|judicial separation)|stands dissolved|hereby dissolved|marriage (?:solemnized|between).*is dissolved|we (?:allow|dismiss) the appeal|confirm the decree of dissolution|we confirm the decree|impugned (?:judgment|order|decree) is (?:hereby\s+)?(?:set aside|upheld|confirmed)|matter is (?:hereby\s+)?(?:remitted|remanded)|fresh consideration|is accordingly,? (?:dismissed|allowed)|ordered to be withdrawn.*and transferred|petition stands allowed|decree of divorce is hereby passed|dissolution of marriage is granted)\b"
+
+    for p in reversed(tail_candidates):
+        raw_t = p.get("text", "")
+        if is_noise_paragraph(raw_t):
             continue
-        if re.search(r"\b(?:in the result|the appeal is (?:allowed|dismissed|partly allowed)|the petition is (?:allowed|dismissed)|decree (?:of|for) (?:dissolution|divorce|nullity|judicial separation)|stands dissolved|hereby dissolved|marriage (?:solemnized|between).*is dissolved|we (?:allow|dismiss) the appeal|consequently,? the (?:appeal|petition)|impugned (?:judgment|order|decree) is (?:set aside|upheld|confirmed)|remitted back|remanded to|no merit in the appeal)\b", p_text, re.I):
-            words = p_text.split()
-            return " ".join(words[:180]) + ("..." if len(words) > 180 else "")
+        cleaned = clean_decision_text(raw_t)
+        if len(cleaned.split()) >= 4:
+            if re.search(decree_pat, cleaned, re.I):
+                words = cleaned.split()
+                return " ".join(words[:180]) + ("..." if len(words) > 180 else "")
 
     for s in case.get("segments", []):
         if s.get("type") == "conclusion":
-            stext = clean_decision_paragraph(s.get("text", ""))
-            words = stext.split()
-            if len(words) >= 6 and not any(bad in stext.lower() for bad in ("in the high court", "before the", "coram:")):
-                return " ".join(words[:180]) + ("..." if len(words) > 180 else "")
+            raw_t = s.get("text", "")
+            if not is_noise_paragraph(raw_t):
+                cleaned = clean_decision_text(raw_t)
+                words = cleaned.split()
+                if len(words) >= 6 and not any(bad in cleaned.lower() for bad in ("in the high court", "before the", "coram:")):
+                    return " ".join(words[:180]) + ("..." if len(words) > 180 else "")
 
-    for p in reversed(tail_paras):
-        p_text = clean_decision_paragraph(p.get("text", ""))
-        words = p_text.split()
-        if 8 <= len(words) <= 120 and not any(bad in p_text.lower() for bad in ("counsel", "advocate for", "sd/-", "coram:")):
+    for p in reversed(tail_candidates):
+        raw_t = p.get("text", "")
+        if is_noise_paragraph(raw_t):
+            continue
+        cleaned = clean_decision_text(raw_t)
+        words = cleaned.split()
+        if 6 <= len(words) <= 150:
             return " ".join(words[:180])
 
-    return f"The Court delivered final judgment determining the proceedings: {outcome}."
+    return f"The Court passed final judgment: {outcome}."
 
 
 def extract_factors_legal(case, parsed_doc):
@@ -530,7 +605,9 @@ def transform_case_to_row(case, parsed_docs, row_idx=0, duplicate_map=None):
     legal_topics = "; ".join([g.replace("_", " ").title() for g in grounds])
 
     outcome, marriage_dissolved = format_outcome_and_dissolution(case)
-    case_num = extract_case_number(title, full_text, citations, doc_id)
+
+    # Strictly genuine court case number or blank (no reporting citations)
+    case_num = extract_case_number(title, full_text)
     judges = extract_judges(full_text)
     acts_cited = extract_acts_cited(full_text, statutes, grounds)
 
@@ -567,7 +644,7 @@ def transform_case_to_row(case, parsed_docs, row_idx=0, duplicate_map=None):
         resp_arg_text = "Respondent denied allegations of desertion/cruelty, contending no cause of action under Section 10."
 
     factors_text = extract_factors_legal(case, parsed)
-    decision_text = extract_decision_operative(case, parsed, outcome)
+    decision_text = extract_decision(case, parsed, outcome)
 
     drive_or_cite_link = url
     if citations:
@@ -591,7 +668,6 @@ def transform_case_to_row(case, parsed_docs, row_idx=0, duplicate_map=None):
                 review_status = "Needs Review"
 
     if case.get("relief") == "unclear" and row_idx not in (0, 1, 2, 3, 4, 5):
-        # If operative decree clearly resolved it, mark verified
         if not any(w in decision_text.lower() for w in ("dismissed", "allowed", "dissolved", "remitted")):
             review_issues.append("Relief Status requires advocate confirmation from record")
 
