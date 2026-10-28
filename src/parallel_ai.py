@@ -138,7 +138,7 @@ def fallback_precedent_research(
     query: str,
     top_score: float = 0.0,
     local_cases: Optional[List[Dict[str, Any]]] = None,
-    timeout: int = 35,
+    timeout: int = 75,
 ) -> Dict[str, Any]:
     """Triggered when local SLM search produces a 'very bad' or low-confidence response
 
