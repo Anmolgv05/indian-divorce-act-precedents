@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { loadConfig, search } from './lib/api.js'
+import { loadConfig, search, decomposeQuery, fallbackResearch } from './lib/api.js'
 import { queryTerms } from './lib/format.js'
 import Filters from './components/Filters.jsx'
 import Stats from './components/Stats.jsx'
@@ -40,6 +40,8 @@ export default function App() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [showFilters, setShowFilters] = useState(false)
   const [state, setState] = useState({ status: 'idle', data: null, error: '', asked: '' })
+  const [decomp, setDecomp] = useState({ status: 'idle', data: null, error: '' })
+  const [aiResearch, setAiResearch] = useState({ status: 'idle', data: null, error: '' })
   const abort = useRef(null)
   const inputRef = useRef(null)
 
@@ -52,6 +54,7 @@ export default function App() {
     const ctl = new AbortController()
     abort.current = ctl
     setState((s) => ({ ...s, status: 'loading', error: '', asked: text }))
+    setAiResearch({ status: 'idle', data: null, error: '' })
     try {
       const data = await search({ query: text, ...f }, ctl.signal)
       setState({ status: 'done', data, error: '', asked: text })
@@ -62,6 +65,28 @@ export default function App() {
     }
     try { const u = new URL(window.location); u.searchParams.set('q', text); window.history.replaceState(null, '', u) } catch { /* ignore */ }
   }, [filters])
+
+  const handleDecompose = async () => {
+    if (!query.trim()) return
+    setDecomp({ status: 'loading', data: null, error: '' })
+    try {
+      const res = await decomposeQuery(query)
+      setDecomp({ status: 'done', data: res, error: '' })
+    } catch (e) {
+      setDecomp({ status: 'error', data: null, error: e.message })
+    }
+  }
+
+  const handleFallbackResearch = async () => {
+    if (!state.asked) return
+    setAiResearch({ status: 'loading', data: null, error: '' })
+    try {
+      const res = await fallbackResearch(state.asked, state.data?.topScore || 0, state.data?.results || [])
+      setAiResearch({ status: 'done', data: res, error: '' })
+    } catch (e) {
+      setAiResearch({ status: 'error', data: null, error: e.message })
+    }
+  }
 
   // Deep link: ?q=... runs on load.
   useEffect(() => {
@@ -110,11 +135,49 @@ export default function App() {
               <button type="button" className="refine" aria-expanded={showFilters} aria-controls="filters" onClick={() => setShowFilters(!showFilters)}>
                 Refine <i className={showFilters ? 'up' : ''} aria-hidden="true" />
               </button>
+              <button
+                type="button"
+                className="ai-assist-btn"
+                style={{
+                  background: 'none', border: '1px dashed var(--accent, #2563eb)',
+                  color: 'var(--accent, #2563eb)', borderRadius: '6px', padding: '0.2rem 0.6rem',
+                  fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer'
+                }}
+                onClick={handleDecompose}
+                disabled={decomp.status === 'loading' || !query.trim()}
+              >
+                {decomp.status === 'loading' ? '⚡ Analyzing...' : '⚡ AI Scenario Breakdown'}
+              </button>
               <div className="samples" aria-label="Example searches">
                 <span>Try</span>
                 {samples.slice(0, 6).map((s) => <button key={s} type="button" onClick={() => pickSample(s)}>{s}</button>)}
               </div>
             </div>
+            {decomp.status === 'done' && decomp.data && (
+              <div className="decomp-box" style={{
+                background: 'var(--panel, #f8fafc)', border: '1px solid var(--border, #e2e8f0)',
+                borderRadius: '8px', padding: '0.85rem 1rem', margin: '0.75rem 0', fontSize: '0.88rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <strong style={{ color: 'var(--accent)' }}>⚡ AI Query Breakdown for SLM:</strong>
+                  <button type="button" onClick={() => setDecomp({ status: 'idle', data: null, error: '' })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
+                </div>
+                {decomp.data.grounds?.length > 0 && <div style={{ marginBottom: '0.25rem' }}><b>Identified Grounds:</b> {decomp.data.grounds.join(', ')}</div>}
+                {decomp.data.statutory_sections?.length > 0 && <div style={{ marginBottom: '0.25rem' }}><b>Sections:</b> {decomp.data.statutory_sections.join(', ')}</div>}
+                {decomp.data.slm_search_queries?.length > 0 && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <b>Targeted SLM Queries (click to search):</b>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.3rem' }}>
+                      {decomp.data.slm_search_queries.map((q) => (
+                        <button key={q} type="button" className="rd-btn sm" onClick={() => pickSample(q)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>
+                          🔍 {q}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {showFilters && <div className="no-print"><Filters value={filters} onChange={setFilters} grounds={grounds} /></div>}
           </form>
         </section>
@@ -132,6 +195,22 @@ export default function App() {
                 <h2>{data.results.length} similar {data.results.length === 1 ? 'judgment' : 'judgments'}</h2>
                 <p>for “{state.asked}”</p>
               </div>
+
+              {/* Entity Resolution Pills */}
+              {data.entitiesDetected && (
+                (data.entitiesDetected.courts?.length > 0) ||
+                (data.entitiesDetected.grounds?.length > 0) ||
+                (data.entitiesDetected.sections?.length > 0) ||
+                (data.entitiesDetected.statutory_bars?.length > 0)
+              ) && (
+                <div className="entity-pills-bar" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', margin: '0.5rem 0 1rem' }}>
+                  {data.entitiesDetected.courts?.map((c) => <span key={c} className="kg-conn-pill" style={{ background: '#e0f2fe', color: '#0369a1' }}>🏛️ {c}</span>)}
+                  {data.entitiesDetected.grounds?.map((g) => <span key={g} className="kg-conn-pill" style={{ background: '#fef3c7', color: '#b45309' }}>⚖️ Ground: {g}</span>)}
+                  {data.entitiesDetected.sections?.map((s) => <span key={s} className="kg-conn-pill" style={{ background: '#dcfce7', color: '#15803d' }}>📜 {s}</span>)}
+                  {data.entitiesDetected.statutory_bars?.map((b) => <span key={b} className="kg-conn-pill" style={{ background: '#fee2e2', color: '#b91c1c' }}>⚠️ Statutory Bar: {b}</span>)}
+                </div>
+              )}
+
               {data.detectedLanguage && (
                 <div className="multilingual-badge-banner" role="status" style={{
                   background: 'var(--panel, #f8f9fa)',
@@ -150,7 +229,56 @@ export default function App() {
                   <span>— Matched English precedents for statutory terms: <em>"{data.effectiveQuery}"</em></span>
                 </div>
               )}
+
               {data.notice && <Banner tone="note" title="Different statute?">{data.notice}</Banner>}
+
+              {/* Parallel AI Fallback Panel for Low Confidence or Weak Matches */}
+              {(data.lowConfidence || data.fallbackAvailable || data.results.length === 0) && (
+                <div className="ai-fallback-panel" style={{
+                  background: 'var(--panel, #f8fafc)',
+                  border: '1px solid var(--accent, #2563eb)',
+                  borderRadius: '12px',
+                  padding: '1.25rem 1.5rem',
+                  margin: '1rem 0 1.5rem',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--ink)' }}>🤖 Research Precedents with Parallel AI</h3>
+                      <p style={{ margin: '0.2rem 0 0', color: 'var(--muted)', fontSize: '0.88rem' }}>
+                        Local database confidence is low. Trigger live web-grounded research across High Court &amp; Supreme Court decisions.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="rd-btn strong"
+                      disabled={aiResearch.status === 'loading'}
+                      onClick={handleFallbackResearch}
+                      style={{ background: 'var(--accent)', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      {aiResearch.status === 'loading' ? 'Researching precedents…' : 'Run Deep Precedent Research ↗'}
+                    </button>
+                  </div>
+                  {aiResearch.status === 'done' && aiResearch.data && (
+                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                      <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.94rem' }}>{aiResearch.data.research_synthesis}</p>
+                      {aiResearch.data.citations?.length > 0 && (
+                        <div style={{ marginTop: '1rem' }}>
+                          <h4 style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '0.4rem' }}>Verified Sources &amp; Precedents:</h4>
+                          <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: '0.88rem' }}>
+                            {aiResearch.data.citations.map((c, idx) => (
+                              <li key={idx}><a href={c.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{c.title}</a></li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {aiResearch.status === 'error' && (
+                    <p style={{ color: 'var(--danger, #dc2626)', marginTop: '0.75rem', fontSize: '0.88rem' }}>Failed to retrieve AI precedent research: {aiResearch.error}</p>
+                  )}
+                </div>
+              )}
+
               {data.lowConfidence && (
                 <Banner tone="warn" title="Weak matches">
                   Nothing in the collection is close to this query, so the cases below may be unrelated. Rephrase with facts and a ground, such as adultery, cruelty or desertion.

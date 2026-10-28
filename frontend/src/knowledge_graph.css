@@ -1,0 +1,176 @@
+/* Knowledge Graph & Entity Resolution Explorer Styles */
+
+.kg-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.kg-header {
+  margin-bottom: 2rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  padding-bottom: 1.5rem;
+}
+
+.kg-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ink, #0f172a);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kg-subtitle {
+  color: var(--muted, #64748b);
+  font-size: 1.05rem;
+  max-width: 800px;
+  line-height: 1.5;
+}
+
+.kg-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2.5rem;
+}
+
+.kg-stat-card {
+  background: var(--panel, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.kg-stat-val {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent, #2563eb);
+  line-height: 1.2;
+}
+
+.kg-stat-lbl {
+  font-size: 0.88rem;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.25rem;
+  font-weight: 600;
+}
+
+.kg-tabs {
+  display: flex;
+  gap: 0.5rem;
+  border-bottom: 2px solid var(--border, #e2e8f0);
+  margin-bottom: 2rem;
+  overflow-x: auto;
+}
+
+.kg-tab-btn {
+  background: none;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.kg-tab-btn:hover {
+  color: var(--ink, #0f172a);
+}
+
+.kg-tab-btn.active {
+  color: var(--accent, #2563eb);
+  border-bottom-color: var(--accent, #2563eb);
+}
+
+.kg-hubs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.kg-hub-item {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.kg-hub-item:hover {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+  transform: translateY(-1px);
+}
+
+.kg-hub-name {
+  font-weight: 600;
+  color: var(--ink, #0f172a);
+  font-size: 0.95rem;
+}
+
+.kg-hub-badge {
+  background: var(--chip-bg, #e0e7ff);
+  color: var(--chip-text, #3730a3);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+}
+
+.kg-neighborhood-box {
+  background: var(--panel, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 1.75rem;
+  margin-top: 1.5rem;
+}
+
+.kg-similar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.kg-similar-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kg-similar-meta {
+  font-size: 0.85rem;
+  color: var(--muted, #64748b);
+  margin-top: 0.25rem;
+}
+
+.kg-conn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--accent-light, #eff6ff);
+  color: var(--accent, #2563eb);
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  margin: 0.25rem 0.25rem 0.25rem 0;
+}

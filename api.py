@@ -83,6 +83,8 @@ class SearchRequest(BaseModel):
     top_k: int = Field(5, ge=1, le=50, description="Number of results to retrieve")
 
 
+import math
+
 def _sanitize_data(obj: Any) -> Any:
     """Recursively converts NumPy types and NaNs to standard Python types for clean JSON."""
     if isinstance(obj, dict):
@@ -90,7 +92,12 @@ def _sanitize_data(obj: Any) -> Any:
     elif isinstance(obj, list):
         return [_sanitize_data(v) for v in obj]
     elif hasattr(obj, "item"):  # numpy scalars
-        return obj.item()
+        val = obj.item()
+        if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+            return None
+        return _sanitize_data(val)
+    elif isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
     return obj
 
 
@@ -183,6 +190,15 @@ def _execute_search(
         # but keep original key for frontend to format badges uniformly.
         clean_results.append(_sanitize_data(card))
 
+    # Extract resolved legal entities from query
+    try:
+        from src.knowledge_graph import EntityResolver
+        entities_detected = EntityResolver.extract_entities_from_text(clean_query)
+    except Exception:
+        entities_detected = {}
+
+    fallback_avail = bool(low_conf or (top_sc < 0.22) or scope_notice or not clean_results)
+
     return {
         "query": clean_query,
         "effective_query": effective_query if detected_lang else None,
@@ -191,7 +207,9 @@ def _execute_search(
         "stats": _sanitize_data(st),
         "out_of_scope_notice": scope_notice,
         "low_confidence": low_conf,
-        "top_score": top_sc
+        "top_score": top_sc,
+        "entities_detected": entities_detected,
+        "fallback_available": fallback_avail,
     }
 
 
@@ -275,6 +293,63 @@ _install_summary(app)
 
 from src.explorer import install as _install_explorer
 _install_explorer(app)
+
+
+# --- AI Assistance & Query Decomposition (Parallel AI) ---
+
+class DecomposeRequest(BaseModel):
+    query: str = Field(..., max_length=1000, description="User legal query or scenario to break down for SLM")
+
+
+class FallbackResearchRequest(BaseModel):
+    query: str = Field(..., max_length=1000, description="User legal query to research")
+    top_score: float = Field(default=0.0, description="Local search top confidence score")
+    cases: Optional[List[Dict[str, Any]]] = Field(default=None, description="Local weak matching cases")
+
+
+@app.post("/api/ai/decompose")
+def api_ai_decompose(payload: DecomposeRequest):
+    """Breaks down complex legal scenarios into grounds, sections, and targeted SLM search terms."""
+    from src.parallel_ai import decompose_query
+    return decompose_query(payload.query)
+
+
+@app.post("/api/ai/fallback-research")
+def api_ai_fallback_research(payload: FallbackResearchRequest):
+    """Triggered when local SLM responses are poor/low-confidence to conduct deep web-grounded research."""
+    from src.parallel_ai import fallback_precedent_research
+    return fallback_precedent_research(
+        query=payload.query,
+        top_score=payload.top_score,
+        local_cases=payload.cases
+    )
+
+
+# --- Section 10 Knowledge Graph & Entity Resolution ---
+
+@app.get("/api/graph/stats")
+def api_graph_stats():
+    """Returns global structural statistics and hubs of the Section 10 Knowledge Graph."""
+    from src.knowledge_graph import get_knowledge_graph
+    return get_knowledge_graph().get_graph_summary()
+
+
+@app.get("/api/graph/case/{doc_id}")
+def api_graph_case(doc_id: str):
+    """Returns 1-hop connected entities and structurally similar cases via 2-hop graph connectivity."""
+    from src.knowledge_graph import get_knowledge_graph
+    res = get_knowledge_graph().get_case_neighborhood(doc_id)
+    if "error" in res:
+        raise HTTPException(status_code=404, detail=res["error"])
+    return res
+
+
+@app.get("/api/graph/entities")
+def api_graph_entities(query: str = Query(..., description="Text to resolve into known legal entities")):
+    """Resolves courts, judges, grounds, and statutory sections from free text."""
+    from src.knowledge_graph import EntityResolver
+    return EntityResolver.extract_entities_from_text(query)
+
 
 # Mount static assets if frontend production build exists
 dist_dir = os.path.join(REPO_ROOT, "frontend", "dist")

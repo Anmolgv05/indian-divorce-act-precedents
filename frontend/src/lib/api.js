@@ -88,7 +88,29 @@ export async function search(params, signal) {
     topScore: Number(d.top_score ?? d.results?.[0]?.score) || 0,
     detectedLanguage: d.detected_language || null,
     effectiveQuery: d.effective_query || null,
+    entitiesDetected: d.entities_detected || null,
+    fallbackAvailable: !!d.fallback_available,
   }
+}
+
+export async function decomposeQuery(query) {
+  const res = await fetch('/api/ai/decompose', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  })
+  if (!res.ok) throw new Error('AI decomposition failed')
+  return await res.json()
+}
+
+export async function fallbackResearch(query, topScore, cases = []) {
+  const res = await fetch('/api/ai/fallback-research', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, top_score: topScore, cases }),
+  })
+  if (!res.ok) throw new Error('AI precedent research failed')
+  return await res.json()
 }
 
 export async function loadConfig() {

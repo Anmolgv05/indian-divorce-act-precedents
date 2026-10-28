@@ -157,6 +157,36 @@ def _llm_call(query: str, cases: list[dict]) -> str:
     return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text").strip()
 
 
+def _parallel_ai_call(query: str, cases: list[dict]) -> str:
+    try:
+        from src.parallel_ai import get_api_key
+        api_key = get_api_key()
+        if not api_key:
+            return ""
+        prompt = (
+            f"{SYSTEM}\n\n"
+            f"Query: {query}\n\n"
+            f"Cases (JSON):\n{json.dumps(cases, ensure_ascii=False)}"
+        )
+        payload = {"model": "parallel", "input": prompt}
+        req = urllib.request.Request(
+            "https://api.parallel.ai/v1/responses",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=30) as r:
+            data = json.loads(r.read())
+        text = ""
+        for item in data.get("output", []):
+            if item.get("type") == "message":
+                for c in item.get("content", []):
+                    if c.get("type") == "output_text":
+                        text += c.get("text", "")
+        return text.strip()
+    except Exception:
+        return ""
+
+
 def validate_llm(text: str, n_cases: int) -> bool:
     cites = [int(x) for x in re.findall(r"\[(\d+)\]", text)]
     if not text or len(text) > 1800 or not cites or any(c < 1 or c > n_cases for c in cites):
@@ -180,10 +210,14 @@ def _allow_llm(limit: int = 20, window: int = 60) -> bool:
 def summarize(query: str, results: list[dict], llm=_llm_call) -> dict[str, Any]:
     cases = normalize(results)
     mode, text = "extractive", extractive_summary(query, cases)
-    if cases and os.environ.get("SUMMARY_LLM") == "1" and os.environ.get("ANTHROPIC_API_KEY") and _allow_llm():
+    if cases and os.environ.get("SUMMARY_LLM") == "1" and _allow_llm():
         try:
-            cand = llm(query, cases)
-            if validate_llm(cand, len(cases)):
+            cand = ""
+            if os.environ.get("ANTHROPIC_API_KEY"):
+                cand = llm(query, cases)
+            else:
+                cand = _parallel_ai_call(query, cases)
+            if cand and validate_llm(cand, len(cases)):
                 mode, text = "llm", cand
         except Exception:
             pass

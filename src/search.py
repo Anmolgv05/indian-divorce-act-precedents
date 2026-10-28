@@ -14,7 +14,10 @@ import argparse
 import numpy as np
 import pandas as pd
 import joblib
-from sentence_transformers import SentenceTransformer
+try:
+    from sentence_transformers import SentenceTransformer
+except ImportError:
+    SentenceTransformer = None
 
 QUERY_INSTRUCTION = "Represent this sentence for searching relevant passages: "
 
@@ -55,6 +58,8 @@ class SearchResults(list):
 
 
 def get_model(model_name: str = "BAAI/bge-small-en-v1.5"):
+    if SentenceTransformer is None:
+        raise ImportError("sentence_transformers package is not installed")
     if model_name not in _MODEL_CACHE:
         _MODEL_CACHE[model_name] = SentenceTransformer(model_name, device="cpu")
     return _MODEL_CACHE[model_name]

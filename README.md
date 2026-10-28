@@ -84,6 +84,13 @@ Save relevant authorities directly to your browser's local library. Highlights a
 | :---: | :---: |
 | ![Personal Library Desktop](docs/images/library_desktop.png) | ![Personal Library Mobile](docs/images/library_mobile.png) |
 
+### 5. Section 10 Legal Knowledge Graph & Entity Resolution (`#/graph`)
+An in-memory legal property graph indexing 919 entities and 4,450 relationships across all 429 precedents:
+- **Entity Resolution (ER)**: Canonicalizes Courts (21 High Courts & Supreme Court), Judges (195 benches), Statutory Provisions (247 cited sections including s.10, s.11 co-respondent rule, s.14 condonation bar, s.17 confirmation, s.19 nullity), Fault Grounds, and Legal Eras (Pre-2001 vs Post-2001).
+- **Structural Similarity (2-Hop Graph Connections)**: Discovers precedents that share the same bench composition, statutory defenses, and legal grounds.
+- **AI Query Decomposition for SLM**: Uses Parallel AI to break down complex multi-fact narratives into recognized statutory grounds, legal questions, and targeted keyword sub-queries for local vector and TF-IDF retrieval.
+- **Deep Fallback Research**: When local database retrieval confidence is low or query is out-of-scope, automatically triggers web-grounded precedent research with verified citations via Parallel AI.
+
 ---
 
 ## Table of Contents

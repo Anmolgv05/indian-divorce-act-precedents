@@ -48,6 +48,7 @@ export default function SiteNav() {
             <a className="nav-item" href="#/" aria-current={isCurrent("")}>Search</a>
             <a className="nav-item" href="#/section-10" aria-current={isCurrent("section-10")}>Section 10 Explained</a>
             <a className="nav-item" href="#/cases" aria-current={isCurrent("cases")}>Browse Cases</a>
+            <a className="nav-item" href="#/graph" aria-current={isCurrent("graph")}>Knowledge Graph</a>
             <a className="nav-item" href="#/library" aria-current={isCurrent("library")}>My Library</a>
             <a className="nav-item" href="#/about" aria-current={isCurrent("about")}>About &amp; Tags</a>
           </nav>
