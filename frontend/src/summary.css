@@ -10,3 +10,189 @@
 .sum-cite:hover{background:var(--ab-accent,#7a1f1f);color:#fff}
 .sum a:focus-visible{outline:3px solid currentColor;outline-offset:2px}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+/* Legal Precedent Research & AI Analysis Panel - Editorial Style */
+.ai-legal-panel {
+  margin: 0 0 28px;
+  padding: 22px 26px 20px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-left: 5px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  animation: rise 0.25s ease both;
+}
+
+.ai-legal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 12px;
+}
+
+.ai-legal-title {
+  font: 700 1.25rem/1.2 var(--serif);
+  color: var(--ink);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ai-legal-badge {
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  padding: 3px 10px;
+  border-radius: 99px;
+}
+
+.ai-legal-body {
+  font-size: 0.96rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.ai-legal-body h2, .ai-legal-body h3, .ai-legal-body h4 {
+  font: 700 1.05rem/1.3 var(--serif);
+  color: var(--accent);
+  margin: 1.2em 0 0.4em;
+  border-bottom: 1px dashed var(--rule);
+  padding-bottom: 4px;
+}
+
+.ai-legal-body p {
+  margin: 0.7em 0;
+}
+
+.ai-legal-body ul, .ai-legal-body ol {
+  padding-left: 1.4rem;
+  margin: 0.5em 0 1em;
+}
+
+.ai-legal-body li {
+  margin-bottom: 0.4em;
+}
+
+.ai-legal-cites {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.ai-legal-cites h4 {
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+.ai-cite-pill {
+  display: inline-block;
+  font-size: 0.82rem;
+  color: var(--accent);
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 4px 10px;
+  margin: 3px 6px 3px 0;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.ai-cite-pill:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  text-decoration: underline;
+}
+
+/* Entity Resolution Pills */
+.entity-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: var(--card);
+  color: var(--ink);
+  margin-right: 6px;
+  margin-bottom: 6px;
+}
+
+.entity-pill.court {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.entity-pill.ground {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.entity-pill.section {
+  border-color: var(--muted);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--brass) 8%, transparent);
+}
+
+.entity-pill.bar {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+/* Query Decomposition Panel under Search Bar */
+.decomp-panel {
+  margin-top: 14px;
+  padding: 16px 20px;
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+  animation: rise 0.2s ease both;
+}
+
+.decomp-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.decomp-panel-title {
+  font: 700 0.95rem var(--serif);
+  color: var(--accent);
+  letter-spacing: -0.01em;
+}
+
+.decomp-query-btn {
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.82rem;
+  margin-right: 6px;
+  margin-top: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.decomp-query-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+

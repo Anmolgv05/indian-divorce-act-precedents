@@ -8,6 +8,80 @@ import { Banner } from './components/Banners.jsx'
 import SiteNav from './SiteNav.jsx'
 import Summary from './Summary.jsx'
 import PrintReport from './PrintReport.jsx'
+import './summary.css'
+
+function FormattedLegalText({ text }) {
+  if (!text) return null
+  const lines = text.split('\n')
+  const blocks = []
+  let currentP = []
+  let currentList = []
+
+  const flushP = () => {
+    if (currentP.length) {
+      blocks.push({ type: 'p', text: currentP.join(' ') })
+      currentP = []
+    }
+  }
+  const flushList = () => {
+    if (currentList.length) {
+      blocks.push({ type: 'ul', items: currentList })
+      currentList = []
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (line.startsWith('## ') || line.startsWith('### ')) {
+      flushP()
+      flushList()
+      blocks.push({ type: 'h', text: line.replace(/^#+\s*/, '') })
+    } else if (line.startsWith('- ') || line.startsWith('* ') || /^\d+\.\s/.test(line)) {
+      flushP()
+      const itemText = line.replace(/^([-*]|\d+\.)\s*/, '')
+      currentList.push(itemText)
+    } else if (!line) {
+      flushP()
+      flushList()
+    } else {
+      flushList()
+      currentP.push(line)
+    }
+  }
+  flushP()
+  flushList()
+
+  const renderSpan = (str) => {
+    const parts = str.split(/(\*\*.*?\*\*|\*.*?\*)/g)
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={idx}>{part.slice(2, -2)}</strong>
+      }
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={idx}>{part.slice(1, -1)}</em>
+      }
+      return part
+    })
+  }
+
+  return (
+    <div className="ai-legal-body">
+      {blocks.map((b, i) => {
+        if (b.type === 'h') return <h3 key={i}>{b.text}</h3>
+        if (b.type === 'ul') {
+          return (
+            <ul key={i}>
+              {b.items.map((item, j) => (
+                <li key={j}>{renderSpan(item)}</li>
+              ))}
+            </ul>
+          )
+        }
+        return <p key={i}>{renderSpan(b.text)}</p>
+      })}
+    </div>
+  )
+}
 
 
 const FALLBACK_SAMPLES = [
@@ -58,6 +132,23 @@ export default function App() {
     try {
       const data = await search({ query: text, ...f }, ctl.signal)
       setState({ status: 'done', data, error: '', asked: text })
+
+      // Auto-trigger Parallel AI precedent research if confidence is low, fallback is recommended, or complex factual scenario is described
+      const isScenario = text.length > 35 || text.split(/\s+/).length >= 6
+      if (data.lowConfidence || data.fallbackAvailable || (data.topScore < 0.22) || isScenario) {
+        setAiResearch({ status: 'loading', data: null, error: '' })
+        fallbackResearch(text, data.topScore || 0, data.results || [])
+          .then((res) => {
+            if (res && res.ok !== false) {
+              setAiResearch({ status: 'done', data: res, error: '' })
+            } else {
+              setAiResearch({ status: 'error', data: null, error: res?.error || 'Precedent synthesis unavailable' })
+            }
+          })
+          .catch((err) => {
+            setAiResearch({ status: 'error', data: null, error: err.message })
+          })
+      }
     } catch (e) {
       if (e.name === 'AbortError') return
       setState({ status: 'error', data: null, asked: text,
@@ -82,7 +173,11 @@ export default function App() {
     setAiResearch({ status: 'loading', data: null, error: '' })
     try {
       const res = await fallbackResearch(state.asked, state.data?.topScore || 0, state.data?.results || [])
-      setAiResearch({ status: 'done', data: res, error: '' })
+      if (res && res.ok !== false) {
+        setAiResearch({ status: 'done', data: res, error: '' })
+      } else {
+        setAiResearch({ status: 'error', data: null, error: res?.error || 'Precedent synthesis unavailable' })
+      }
     } catch (e) {
       setAiResearch({ status: 'error', data: null, error: e.message })
     }
@@ -139,14 +234,20 @@ export default function App() {
                 type="button"
                 className="ai-assist-btn"
                 style={{
-                  background: 'none', border: '1px dashed var(--accent, #2563eb)',
-                  color: 'var(--accent, #2563eb)', borderRadius: '6px', padding: '0.2rem 0.6rem',
-                  fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer'
+                  background: 'none',
+                  border: '1px solid var(--rule)',
+                  color: 'var(--accent)',
+                  borderRadius: '4px',
+                  padding: '0.2rem 0.65rem',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  fontFamily: 'var(--serif)',
+                  cursor: 'pointer'
                 }}
                 onClick={handleDecompose}
                 disabled={decomp.status === 'loading' || !query.trim()}
               >
-                {decomp.status === 'loading' ? '⚡ Analyzing...' : '⚡ AI Scenario Breakdown'}
+                {decomp.status === 'loading' ? '⚡ Analyzing…' : '⚡ AI Scenario Breakdown'}
               </button>
               <div className="samples" aria-label="Example searches">
                 <span>Try</span>
@@ -154,22 +255,34 @@ export default function App() {
               </div>
             </div>
             {decomp.status === 'done' && decomp.data && (
-              <div className="decomp-box" style={{
-                background: 'var(--panel, #f8fafc)', border: '1px solid var(--border, #e2e8f0)',
-                borderRadius: '8px', padding: '0.85rem 1rem', margin: '0.75rem 0', fontSize: '0.88rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <strong style={{ color: 'var(--accent)' }}>⚡ AI Query Breakdown for SLM:</strong>
-                  <button type="button" onClick={() => setDecomp({ status: 'idle', data: null, error: '' })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>✕</button>
+              <div className="decomp-panel">
+                <div className="decomp-panel-head">
+                  <div className="decomp-panel-title">⚡ AI Legal Scenario Breakdown</div>
+                  <button
+                    type="button"
+                    onClick={() => setDecomp({ status: 'idle', data: null, error: '' })}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: '1.1rem' }}
+                    aria-label="Close"
+                  >
+                    ✕
+                  </button>
                 </div>
-                {decomp.data.grounds?.length > 0 && <div style={{ marginBottom: '0.25rem' }}><b>Identified Grounds:</b> {decomp.data.grounds.join(', ')}</div>}
-                {decomp.data.statutory_sections?.length > 0 && <div style={{ marginBottom: '0.25rem' }}><b>Sections:</b> {decomp.data.statutory_sections.join(', ')}</div>}
+                {decomp.data.grounds?.length > 0 && (
+                  <div style={{ marginBottom: '0.35rem', color: 'var(--ink)' }}>
+                    <b>Identified Grounds:</b> {decomp.data.grounds.join(', ')}
+                  </div>
+                )}
+                {decomp.data.statutory_sections?.length > 0 && (
+                  <div style={{ marginBottom: '0.35rem', color: 'var(--ink)' }}>
+                    <b>Applicable Sections:</b> {decomp.data.statutory_sections.join(', ')}
+                  </div>
+                )}
                 {decomp.data.slm_search_queries?.length > 0 && (
-                  <div style={{ marginTop: '0.5rem' }}>
-                    <b>Targeted SLM Queries (click to search):</b>
-                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.3rem' }}>
+                  <div style={{ marginTop: '0.6rem' }}>
+                    <b style={{ color: 'var(--ink)' }}>Targeted Precedent Queries:</b>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.4rem' }}>
                       {decomp.data.slm_search_queries.map((q) => (
-                        <button key={q} type="button" className="rd-btn sm" onClick={() => pickSample(q)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>
+                        <button key={q} type="button" className="decomp-query-btn" onClick={() => pickSample(q)}>
                           🔍 {q}
                         </button>
                       ))}
@@ -204,77 +317,139 @@ export default function App() {
                 (data.entitiesDetected.statutory_bars?.length > 0)
               ) && (
                 <div className="entity-pills-bar" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', margin: '0.5rem 0 1rem' }}>
-                  {data.entitiesDetected.courts?.map((c) => <span key={c} className="kg-conn-pill" style={{ background: '#e0f2fe', color: '#0369a1' }}>🏛️ {c}</span>)}
-                  {data.entitiesDetected.grounds?.map((g) => <span key={g} className="kg-conn-pill" style={{ background: '#fef3c7', color: '#b45309' }}>⚖️ Ground: {g}</span>)}
-                  {data.entitiesDetected.sections?.map((s) => <span key={s} className="kg-conn-pill" style={{ background: '#dcfce7', color: '#15803d' }}>📜 {s}</span>)}
-                  {data.entitiesDetected.statutory_bars?.map((b) => <span key={b} className="kg-conn-pill" style={{ background: '#fee2e2', color: '#b91c1c' }}>⚠️ Statutory Bar: {b}</span>)}
+                  {data.entitiesDetected.courts?.map((c) => <span key={c} className="entity-pill court">🏛️ {c}</span>)}
+                  {data.entitiesDetected.grounds?.map((g) => <span key={g} className="entity-pill ground">⚖️ Ground: {g}</span>)}
+                  {data.entitiesDetected.sections?.map((s) => <span key={s} className="entity-pill section">📜 {s}</span>)}
+                  {data.entitiesDetected.statutory_bars?.map((b) => <span key={b} className="entity-pill bar">⚠️ Statutory Bar: {b}</span>)}
                 </div>
               )}
 
               {data.detectedLanguage && (
                 <div className="multilingual-badge-banner" role="status" style={{
-                  background: 'var(--panel, #f8f9fa)',
-                  border: '1px solid var(--border, #e2e8f0)',
+                  background: 'var(--card)',
+                  border: '1px solid var(--rule)',
                   borderRadius: '8px',
                   padding: '0.75rem 1rem',
                   margin: '0.5rem 0 1rem',
                   fontSize: '0.88rem',
-                  color: 'var(--ink, #1a202c)',
+                  color: 'var(--ink)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.6rem',
                   flexWrap: 'wrap'
                 }}>
-                  <span style={{ fontWeight: 600, color: 'var(--accent, #1d4ed8)' }}>🌐 {data.detectedLanguage} Query Detected</span>
+                  <span style={{ fontWeight: 600, color: 'var(--accent)' }}>🌐 {data.detectedLanguage} Query Detected</span>
                   <span>— Matched English precedents for statutory terms: <em>"{data.effectiveQuery}"</em></span>
                 </div>
               )}
 
               {data.notice && <Banner tone="note" title="Different statute?">{data.notice}</Banner>}
 
-              {/* Parallel AI Fallback Panel for Low Confidence or Weak Matches */}
-              {(data.lowConfidence || data.fallbackAvailable || data.results.length === 0) && (
-                <div className="ai-fallback-panel" style={{
-                  background: 'var(--panel, #f8fafc)',
-                  border: '1px solid var(--accent, #2563eb)',
-                  borderRadius: '12px',
-                  padding: '1.25rem 1.5rem',
-                  margin: '1rem 0 1.5rem',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-                    <div>
-                      <h3 style={{ fontSize: '1.05rem', margin: 0, color: 'var(--ink)' }}>🤖 Research Precedents with Parallel AI</h3>
-                      <p style={{ margin: '0.2rem 0 0', color: 'var(--muted)', fontSize: '0.88rem' }}>
-                        Local database confidence is low. Trigger live web-grounded research across High Court &amp; Supreme Court decisions.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="rd-btn strong"
-                      disabled={aiResearch.status === 'loading'}
-                      onClick={handleFallbackResearch}
-                      style={{ background: 'var(--accent)', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer' }}
-                    >
-                      {aiResearch.status === 'loading' ? 'Researching precedents…' : 'Run Deep Precedent Research ↗'}
-                    </button>
+              {/* Legal Precedent Assessment & Parallel AI Research Panel */}
+              {(aiResearch.status === 'loading' ||
+                aiResearch.status === 'done' ||
+                aiResearch.status === 'error' ||
+                data.lowConfidence ||
+                data.fallbackAvailable ||
+                (data.topScore < 0.22) ||
+                data.results.length === 0) && (
+                <div className="ai-legal-panel">
+                  <div className="ai-legal-head">
+                    <h3 className="ai-legal-title">
+                      <span>⚖️</span> Precedent &amp; Legal Assessment
+                    </h3>
+                    <span className="ai-legal-badge">
+                      {aiResearch.status === 'loading'
+                        ? 'Parallel AI Synthesizing…'
+                        : 'Parallel AI Precedent Analysis'}
+                    </span>
                   </div>
+
+                  {aiResearch.status === 'loading' && (
+                    <div style={{ padding: '0.5rem 0' }}>
+                      <p className="sum-wait" style={{ fontStyle: 'italic', margin: '0.5rem 0 0.8rem' }}>
+                        Synthesizing legal position under Section 10 of the Indian Divorce Act, examining grounds, and retrieving relevant High Court &amp; Supreme Court authorities…
+                      </p>
+                      <div className="skeletons" aria-hidden="true" style={{ margin: '0.5rem 0' }}>
+                        <div className="sk" style={{ '--i': 0, height: '14px', marginBottom: '8px' }} />
+                        <div className="sk" style={{ '--i': 1, height: '14px', width: '85%', marginBottom: '8px' }} />
+                        <div className="sk" style={{ '--i': 2, height: '14px', width: '70%' }} />
+                      </div>
+                    </div>
+                  )}
+
                   {aiResearch.status === 'done' && aiResearch.data && (
-                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-                      <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6, fontSize: '0.94rem' }}>{aiResearch.data.research_synthesis}</p>
+                    <div>
+                      <FormattedLegalText text={aiResearch.data.research_synthesis} />
                       {aiResearch.data.citations?.length > 0 && (
-                        <div style={{ marginTop: '1rem' }}>
-                          <h4 style={{ fontSize: '0.9rem', color: 'var(--muted)', marginBottom: '0.4rem' }}>Verified Sources &amp; Precedents:</h4>
-                          <ul style={{ paddingLeft: '1.2rem', margin: 0, fontSize: '0.88rem' }}>
+                        <div className="ai-legal-cites">
+                          <h4>Verified Precedents &amp; Authorities</h4>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                             {aiResearch.data.citations.map((c, idx) => (
-                              <li key={idx}><a href={c.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>{c.title}</a></li>
+                              <a
+                                key={idx}
+                                href={c.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="ai-cite-pill"
+                              >
+                                🏛️ {c.title || 'Case Citation'} ↗
+                              </a>
                             ))}
-                          </ul>
+                          </div>
                         </div>
                       )}
                     </div>
                   )}
+
                   {aiResearch.status === 'error' && (
-                    <p style={{ color: 'var(--danger, #dc2626)', marginTop: '0.75rem', fontSize: '0.88rem' }}>Failed to retrieve AI precedent research: {aiResearch.error}</p>
+                    <div style={{ margin: '0.5rem 0' }}>
+                      <p style={{ color: 'var(--accent)', fontSize: '0.9rem', margin: '0 0 0.5rem' }}>
+                        {aiResearch.error || 'Failed to complete AI precedent synthesis.'}
+                      </p>
+                      <button
+                        type="button"
+                        className="rd-btn"
+                        onClick={handleFallbackResearch}
+                        style={{
+                          background: 'var(--bg)',
+                          border: '1px solid var(--rule)',
+                          color: 'var(--ink)',
+                          padding: '0.3rem 0.8rem',
+                          borderRadius: '4px',
+                          fontSize: '0.82rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        ↻ Retry Legal Research
+                      </button>
+                    </div>
+                  )}
+
+                  {aiResearch.status === 'idle' && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <p style={{ margin: 0, color: 'var(--muted)', fontSize: '0.9rem' }}>
+                        {data.lowConfidence
+                          ? 'Local corpus similarity is low for this factual query. Run Parallel AI to synthesize leading High Court & Supreme Court precedents.'
+                          : 'Explore authoritative precedent analysis and relevant High Court authorities for this scenario.'}
+                      </p>
+                      <button
+                        type="button"
+                        className="rd-btn strong"
+                        onClick={handleFallbackResearch}
+                        style={{
+                          background: 'var(--accent)',
+                          color: '#fff',
+                          padding: '0.45rem 1rem',
+                          borderRadius: '4px',
+                          border: 'none',
+                          font: '600 0.85rem var(--serif)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Synthesize Precedents ↗
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
