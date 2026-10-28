@@ -71,7 +71,7 @@ function CaseItem({ c }) {
         {canRead && (
           <a href={`#/read/${c.doc_id}`}>Read in site</a>
         )}
-        <a href={`https://huggingface.co/datasets/anabaena/section10-divorce-corpus/blob/main/parsed/${c.doc_id}.json`} target="_blank" rel="noopener noreferrer">HF Data<span className="sr-only"> (opens in a new tab)</span></a>
+        <a href={`https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus/blob/main/parsed/${c.doc_id}.json`} target="_blank" rel="noopener noreferrer">HF Data<span className="sr-only"> (opens in a new tab)</span></a>
         <a href={c.url} target="_blank" rel="noopener noreferrer">Indian Kanoon<span className="sr-only"> (opens in a new tab)</span></a>
       </div>
       {open && (

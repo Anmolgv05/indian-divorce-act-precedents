@@ -270,14 +270,14 @@ export default function About() {
         <ul>
           <li>
             <b>GitHub Repository:</b>{" "}
-            <a href="https://github.com/darayavahoush/indian-divorce-act-precedents" target="_blank" rel="noopener noreferrer">
-              darayavahoush/indian-divorce-act-precedents
+            <a href="https://github.com/Anmolgv05/indian-divorce-act-precedents" target="_blank" rel="noopener noreferrer">
+              Anmolgv05/indian-divorce-act-precedents
             </a>
           </li>
           <li>
             <b>Hugging Face Dataset:</b>{" "}
-            <a href="https://huggingface.co/datasets/anabaena/section10-divorce-corpus" target="_blank" rel="noopener noreferrer">
-              anabaena/section10-divorce-corpus
+            <a href="https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus" target="_blank" rel="noopener noreferrer">
+              AnmolGV/section10-divorce-corpus
             </a>
           </li>
           <li>

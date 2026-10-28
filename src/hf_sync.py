@@ -1,7 +1,7 @@
 """Hugging Face Dataset Sync & On-Demand Case Retrieval Module.
 
 Connects the Section 10 Indian Divorce Act search engine to the Hugging Face Hub dataset:
-https://huggingface.co/datasets/anabaena/section10-divorce-corpus
+https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import Optional, Dict, Any, List
 
 logger = logging.getLogger("hf_sync")
 
-DEFAULT_HF_REPO = "anabaena/section10-divorce-corpus"
+DEFAULT_HF_REPO = "AnmolGV/section10-divorce-corpus"
 ROOT = Path(__file__).resolve().parent.parent
 PARSED_DIR = ROOT / "data" / "parsed"
 LABELED_FILE = ROOT / "data" / "labeled" / "cases.jsonl"

@@ -42,7 +42,7 @@ except ImportError:
         from hf_sync import fetch_case_from_hf, get_case_hf_url
     except ImportError:
         def fetch_case_from_hf(doc_id: str): return None
-        def get_case_hf_url(doc_id: str): return f"https://huggingface.co/datasets/anabaena/section10-divorce-corpus/blob/main/parsed/{doc_id}.json"
+        def get_case_hf_url(doc_id: str): return f"https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus/blob/main/parsed/{doc_id}.json"
 
 
 @router.get("/api/reader/status")

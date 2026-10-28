@@ -98,7 +98,7 @@ export default function CaseCard({ c, rank, terms, scoreMax }) {
             {canRead && docId && (
               <a className="link" href={`#/read/${docId}`}>Read in site</a>
             )}
-            <a className="link" href={`https://huggingface.co/datasets/anabaena/section10-divorce-corpus/blob/main/parsed/${docId}.json`} target="_blank" rel="noopener noreferrer">HF Data ↗</a>
+            <a className="link" href={`https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus/blob/main/parsed/${docId}.json`} target="_blank" rel="noopener noreferrer">HF Data ↗</a>
             <a className="link strong" href={c.url} target="_blank" rel="noopener noreferrer">Indian Kanoon <span aria-hidden="true">↗</span></a>
           </div>
         </footer>

@@ -43,7 +43,7 @@ tags:
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688.svg)](https://fastapi.tiangolo.com/)
 [![React 18 + Vite](https://img.shields.io/badge/frontend-React%2018%20%2B%20Vite-61dafb.svg)](https://vitejs.dev/)
 [![Tests](https://img.shields.io/badge/tests-125%20Python%20%2B%2016%20JS%20passed-brightgreen.svg)](tests/)
-[![Hugging Face Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-section10--divorce--corpus-yellow.svg)](https://huggingface.co/datasets/anabaena/section10-divorce-corpus)
+[![Hugging Face Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-section10--divorce--corpus-yellow.svg)](https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus)
 [![Deploy on Render](https://img.shields.io/badge/Render-Deploy%20Ready-46E3B7.svg)](render.yaml)
 
 A specialized precedent intelligence and semantic search engine for reported decisions under **Section 10 of the Indian Divorce Act, 1869** (Christian matrimonial law in India). Designed specifically for advocates, legal practitioners, and researchers to assess factual scenarios, evidentiary burdens, statutory defenses, and judicial likelihood without creative hallucinations or cloud data leakage.
@@ -318,7 +318,7 @@ The search engine augments search results with actionable practice intelligence:
 
 The entire audited dataset, precomputed indices, and audit reports are published on Hugging Face:
 
-📦 **Dataset Hub**: [https://huggingface.co/datasets/anmolgv/section10-divorce-corpus](https://huggingface.co/datasets/anmolgv/section10-divorce-corpus)
+📦 **Dataset Hub**: [https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus](https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus)
 
 ### Loading with Python
 
@@ -327,12 +327,12 @@ import pandas as pd
 from datasets import load_dataset
 
 # 1. Load the 429 audited labeled cases
-cases_df = pd.read_json("hf://datasets/anmolgv/section10-divorce-corpus/data/labeled/cases.jsonl", lines=True)
+cases_df = pd.read_json("hf://datasets/AnmolGV/section10-divorce-corpus/data/labeled/cases.jsonl", lines=True)
 print(f"Loaded {len(cases_df)} labeled cases")
 print(cases_df[["doc_id", "title", "primary_ground", "disposal", "marriage_dissolved"]].head())
 
 # 2. Load the 13,263 precomputed chunk metadata records
-meta_df = pd.read_parquet("hf://datasets/anmolgv/section10-divorce-corpus/data/index/meta.parquet")
+meta_df = pd.read_parquet("hf://datasets/AnmolGV/section10-divorce-corpus/data/index/meta.parquet")
 print(f"Loaded {len(meta_df)} chunks across {meta_df['doc_id'].nunique()} judgments")
 ```
 

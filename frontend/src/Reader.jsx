@@ -47,7 +47,7 @@ export default function Reader({ docId }) {
       })
       .catch((e) => {
         // Fallback directly to Hugging Face Hub dataset if server is off or file is un-cached
-        fetch(`https://huggingface.co/datasets/anabaena/section10-divorce-corpus/raw/main/parsed/${encodeURIComponent(docId)}.json`)
+        fetch(`https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus/raw/main/parsed/${encodeURIComponent(docId)}.json`)
           .then(async (r) => {
             if (!r.ok) throw new Error("hf_fail");
             return r.json();
@@ -61,7 +61,7 @@ export default function Reader({ docId }) {
               court: hfData.court || "",
               year: hfData.year,
               source_url: `https://indiankanoon.org/doc/${docId}/`,
-              hf_url: `https://huggingface.co/datasets/anabaena/section10-divorce-corpus/blob/main/parsed/${docId}.json`,
+              hf_url: `https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus/blob/main/parsed/${docId}.json`,
               source: "huggingface",
               paragraphs: paras,
             };
@@ -269,7 +269,7 @@ export default function Reader({ docId }) {
                 judgment. Check the certified copy before citing.{" "}
                 <a href={data.source_url} target="_blank" rel="noopener noreferrer">View original on Indian Kanoon</a>
                 {" · "}
-                <a href={data.hf_url || `https://huggingface.co/datasets/anabaena/section10-divorce-corpus/blob/main/parsed/${docId}.json`} target="_blank" rel="noopener noreferrer">Hugging Face Dataset JSON</a>
+                <a href={data.hf_url || `https://huggingface.co/datasets/AnmolGV/section10-divorce-corpus/blob/main/parsed/${docId}.json`} target="_blank" rel="noopener noreferrer">Hugging Face Dataset JSON</a>
               </p>
             </footer>
 
