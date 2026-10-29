@@ -173,16 +173,17 @@ class EntityResolver:
 
         # Grounds
         ground_triggers = {
-            "Adultery": ["adultery", "paramour", "illicit", "infidelity", "affair"],
-            "Cruelty": ["cruelty", "torture", "harass", "beating", "mental cruelty"],
-            "Desertion": ["desertion", "abandon", "separated", "left home", "deserted"],
-            "Nullity (s.19)": ["nullity", "annul", "impoten", "non-consummat", "fraud", "force"],
-            "Mutual Consent (s.10A)": ["mutual consent", "10a", "joint petition"],
-            "Unsound Mind": ["unsound mind", "mental illness", "schizophrenia", "insanity"],
-            "Conversion": ["conversion", "converted", "ceased to be christian"],
+            "Adultery": [r"\badulter\w*", r"\baffair\w*", r"\bparamour\b", r"\billicit\b", r"\binfidelity\b", r"\bcheating\b"],
+            "Cruelty": [r"\bcruel\w*", r"\btortur\w*", r"\bharass\w*", r"\bbeat\w*", r"\bmental\s+(?:cruelty|agony)\b", r"\bviolence\b", r"\bassault\w*", r"\bdowry\b", r"\bverbal\s+abuse\b", r"\bill-treat\w*"],
+            "Desertion": [r"\bdesert\w*", r"\babandon\w*", r"\bseparat\w*", r"\bleft\s+(?:the\s+)?(?:house|home|matrimonial)\b", r"\blived\s+apart\b", r"\bliving\s+separately\b"],
+            "Nullity (s.19)": [r"\bnullity\b", r"\bannul\w*", r"\bvoid\s+marriage\b", r"\bfraud\w*", r"\bforce\b"],
+            "Mutual Consent (s.10A)": [r"\bmutual\s+consent\b", r"\b10a\b", r"\bjoint\s+petition\b", r"\bmutually\s+agree\w*", r"\bboth\s+agree\w*"],
+            "Unsound Mind": [r"\bunsound\s+mind\b", r"\bmental\s+(?:illness|disorder)\b", r"\bschizophreni\w*", r"\blunatic\b", r"\binsan\w*"],
+            "Conversion": [r"\bconversion\b", r"\bconvert\w*", r"\bceased\s+to\s+be\s+christian\b", r"\bembraced\s+(?:islam|hinduism)\b"],
+            "Non-Consummation": [r"\bconsummat\w*", r"\bimpoten\w*", r"\berectile\b", r"\bincapacity\b", r"\brepugnance\b"]
         }
-        for ground, triggers in ground_triggers.items():
-            if any(re.search(rf"\b{t}\b", text_lower) for t in triggers):
+        for ground, patterns in ground_triggers.items():
+            if any(re.search(p, text_lower) for p in patterns):
                 extracted["grounds"].append(ground)
 
         # Sections
@@ -196,11 +197,11 @@ class EntityResolver:
             extracted["sections"].append("Section 498A IPC")
 
         # Specific statutory bars
-        if any(w in text_lower for w in ["condon", "forgave", "forgiven"]):
+        if re.search(r"\bcondon\w*|\bforgav\w*|\bforgiven\b", text_lower):
             extracted["statutory_bars"].append("Condonation (s.14)")
             if "Section 14" not in extracted["sections"]:
                 extracted["sections"].append("Section 14")
-        if any(w in text_lower for w in ["co-respondent", "co respondent", "adulterer party"]):
+        if re.search(r"\bco-respondent\b|\bco\s+respondent\b|\badulterer\b", text_lower):
             extracted["statutory_bars"].append("Co-respondent Rule (s.11)")
             if "Section 11" not in extracted["sections"]:
                 extracted["sections"].append("Section 11")

@@ -36,6 +36,44 @@ OUT_OF_SCOPE_PATTERNS = [
     (re.compile(r"\b(?:ipc|indian penal code)\b", re.I), "Indian Penal Code (IPC)"),
 ]
 
+GROUND_PATTERNS = {
+    "conversion": [
+        r"\b(?:convert(?:ed|ing|s)?|conversion|ceased\s+to\s+be\s+christian|embraced\s+(?:islam|hinduism|buddhism)|remarried\s+after\s+conversion)\b"
+    ],
+    "mutual_consent_10A": [
+        r"\b(?:mutual\s+consent|mutually\s+agree(?:d|s)?|both\s+agree(?:d|s)?|joint\s+petition|10a\b|cooling\s+off|waive\s+six\s+months)\b"
+    ],
+    "non_consummation": [
+        r"\b(?:consummat\w*|impoten\w*|erectile|incapacity|invincible\s+repugnance|unconsummated)\b"
+    ],
+    "unsound_mind": [
+        r"\b(?:unsound\s+mind|schizophreni\w*|mental\s+disorder|mental\s+illness|lunatic|insan\w*)\b"
+    ],
+    "nullity_sec19": [
+        r"\b(?:nullity|annul\w*|void\s+marriage|fraud\w*|consent\s+by\s+force|bigam\w*|impediment)\b"
+    ],
+    "cruelty": [
+        r"\b(?:cruel\w*|beat\w*|harass\w*|tortur\w*|mental\s+agony|violence|assault\w*|dowry|verbal\s+abuse|ill-treat\w*|quarrel\w*|humiliat\w*)\b"
+    ],
+    "desertion": [
+        r"\b(?:desert\w*|abandon\w*|left\s+(?:the\s+)?(?:house|home|matrimonial)|refused\s+to\s+(?:return|live|cohabit)|living\s+separately|lived\s+apart|two\s+years\s+separat\w*)\b"
+    ],
+    "adultery": [
+        r"\b(?:adulter\w*|affair\w*|paramour|illicit\s+relat\w*|co-respondent|infidelity|cheating|another\s+woman|another\s+man)\b"
+    ],
+}
+
+
+def detect_query_grounds(query: str) -> list[str]:
+    """Identifies the intended statutory grounds from query text."""
+    if not query:
+        return []
+    detected = []
+    for g, patterns in GROUND_PATTERNS.items():
+        if any(re.search(p, query, re.I) for p in patterns):
+            detected.append(g)
+    return detected
+
 
 def out_of_scope_notice(query: str) -> str | None:
     """Checks if query references adjacent or non-applicable statutes and returns an informational notice."""
@@ -150,7 +188,7 @@ def search(
     mode: str = "hybrid",
     dense_weight: float = 0.7,
     tfidf_weight: float = 0.3,
-    confidence_threshold: float = 0.50,
+    confidence_threshold: float = 0.20,
     index_dir: str = "data/index",
     model_name: str = "BAAI/bge-small-en-v1.5"
 ) -> list[dict]:
@@ -186,7 +224,36 @@ def search(
 
     scores = raw_scores.copy()
 
-    # 3. Apply filters
+    # 3. Disqualify short fragments, order captions, and boilerplate conclusions (e.g. "I agree.")
+    short_mask = (df["text"].str.len() < 55) | (
+        df["text"].str.strip().str.lower().isin(
+            ["i agree.", "8. i agree.", "order accordingly.", "judgment", "order", "decree accordingly."]
+        )
+    )
+    scores[short_mask] = -999.0
+
+    # 4. Ground-aware scoring adjustments if user didn't specify an explicit ground filter
+    detected_grounds = detect_query_grounds(query)
+    if detected_grounds and not ground:
+        # Boost cases matching detected ground
+        primary_match = df["primary_ground"].isin(detected_grounds)
+        scores[primary_match] += 0.09
+
+        # Secondary match in grounds list
+        secondary_match = df["grounds"].apply(
+            lambda g: any(dg in (g if isinstance(g, list) else str(g).split(",")) for dg in detected_grounds)
+        )
+        scores[secondary_match & ~primary_match] += 0.05
+
+        # Suppress unrelated fault grounds if query specifically targeted other grounds
+        other_faults = {
+            "adultery", "desertion", "cruelty", "conversion",
+            "unsound_mind", "non_consummation", "nullity_sec19", "mutual_consent_10A"
+        } - set(detected_grounds)
+        conflicting = df["primary_ground"].isin(other_faults) & ~secondary_match
+        scores[conflicting] -= 0.05
+
+    # 5. Apply user filters
     mask = np.ones(len(df), dtype=bool)
     if not include_non_merits:
         mask &= (~df["non_merits"].fillna(False).astype(bool))
@@ -204,15 +271,16 @@ def search(
         empty_res = SearchResults()
         empty_res.low_confidence = True
         empty_res.top_score = 0.0
+        empty_res.detected_grounds = detected_grounds
         return empty_res
 
-    # 4. Take top 50 chunks
-    top_50_idx = valid_indices[np.argsort(scores[valid_indices])[::-1][:50]]
+    # 6. Take top 100 chunks for rich case coverage
+    top_100_idx = valid_indices[np.argsort(scores[valid_indices])[::-1][:100]]
 
-    # 5. Group by case and compute best score per case
+    # 7. Group by case and compute best score per case
     case_scores = {}
     best_chunk_per_case = {}
-    for idx in top_50_idx:
+    for idx in top_100_idx:
         row = df.iloc[idx]
         doc_id = str(row["doc_id"])
         sc = float(scores[idx])
@@ -220,7 +288,7 @@ def search(
             case_scores[doc_id] = sc
             best_chunk_per_case[doc_id] = (sc, row)
 
-    # 6. Rank cases and collapse duplicates
+    # 8. Rank cases and collapse duplicates
     sorted_doc_ids = sorted(case_scores.keys(), key=lambda d: case_scores[d], reverse=True)
     included_doc_ids = set()
     ranked_cases = []
@@ -308,6 +376,7 @@ def search(
     results_obj.low_confidence = is_low_conf
     results_obj.top_score = top_score
     results_obj.out_of_scope_notice = notice
+    results_obj.detected_grounds = detected_grounds
     return results_obj
 
 

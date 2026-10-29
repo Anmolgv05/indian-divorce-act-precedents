@@ -55,6 +55,7 @@ def decompose_query(query: str, timeout: int = 25) -> Dict[str, Any]:
     payload = {
         "model": "parallel",
         "input": prompt,
+        "temperature": 0.15,
     }
 
     try:
@@ -102,32 +103,23 @@ def decompose_query(query: str, timeout: int = 25) -> Dict[str, Any]:
 
 def _heuristic_decomposition(query: str) -> Dict[str, Any]:
     """Fallback query decomposition when API is unavailable."""
-    q_lower = query.lower()
-    grounds = []
-    if any(w in q_lower for w in ["adultery", "affair", "paramour"]):
-        grounds.append("adultery")
-    if any(w in q_lower for w in ["cruelty", "torture", "beating", "abusive", "harass"]):
-        grounds.append("cruelty")
-    if any(w in q_lower for w in ["desert", "left", "abandoned", "separate"]):
-        grounds.append("desertion")
-    if any(w in q_lower for w in ["consummat", "impoten", "erectile"]):
-        grounds.append("non_consummation")
-    if any(w in q_lower for w in ["mutual", "consent", "10a"]):
-        grounds.append("mutual_consent_10A")
-    if any(w in q_lower for w in ["nullity", "null", "void", "fraud"]):
-        grounds.append("nullity_sec19")
-
+    from src.search import detect_query_grounds
+    grounds = detect_query_grounds(query)
     sections = ["Section 10"]
-    if "condon" in q_lower:
+    if "mutual_consent_10A" in grounds:
+        sections.append("Section 10A")
+    if "nullity_sec19" in grounds:
+        sections.append("Section 19")
+    if "condon" in query.lower():
         sections.append("Section 14")
-    if "co-respondent" in q_lower or "adulterer" in q_lower:
+    if "co-respondent" in query.lower() or "adulterer" in query.lower():
         sections.append("Section 11")
 
     return {
         "ok": True,
         "source": "heuristic_fallback",
         "grounds": grounds or ["unclear"],
-        "statutory_sections": sections,
+        "statutory_sections": list(dict.fromkeys(sections)),
         "key_facts": [query],
         "slm_search_queries": [query],
         "raw_text": None,
@@ -141,7 +133,6 @@ def fallback_precedent_research(
     timeout: int = 75,
 ) -> Dict[str, Any]:
     """Triggered when local SLM search produces a 'very bad' or low-confidence response
-
     (e.g. top_score < threshold or out-of-scope).
     Calls Parallel AI to perform web-grounded legal research over High Court / Supreme Court precedents
     and synthesize an authoritative legal answer with verified citations.
@@ -154,27 +145,35 @@ def fallback_precedent_research(
             "fallback_used": False,
         }
 
+    from src.search import detect_query_grounds
+    detected_grounds = detect_query_grounds(query)
+
     case_context = ""
     if local_cases:
-        case_context = "\nLocal database returned weak matches:\n" + "\n".join(
-            f"- {c.get('title', 'Unknown')} ({c.get('year', '')}): {c.get('disposal', '')}, score: {c.get('score', 0)}"
-            for c in local_cases[:3]
-        )
+        matching_local = [
+            c for c in local_cases
+            if not detected_grounds or c.get("primary_ground") in detected_grounds or any(g in detected_grounds for g in c.get("grounds", []))
+        ]
+        if matching_local:
+            case_context = "\nCorpus precedents on point:\n" + "\n".join(
+                f"- {c.get('title', 'Unknown')} ({c.get('year', '')}): {c.get('primary_ground', '')}, outcome: {c.get('disposal', '')}"
+                for c in matching_local[:3]
+            )
 
     prompt = (
-        f"A user queried an Indian Christian Divorce law precedent search engine (Section 10 of Indian Divorce Act, 1869):\n"
-        f"Query: \"{query}\"\n"
-        f"Retrieval confidence was very low (top match score: {top_score:.3f}).{case_context}\n\n"
-        f"Please provide an authoritative, citation-grounded precedent research answer:\n"
-        f"1. State the exact legal position under Section 10 of the Indian Divorce Act, 1869 (and relevant High Court / Supreme Court interpretations).\n"
-        f"2. Cite 2 to 3 leading reported High Court or Supreme Court precedents by name and year, explaining the ratio decidendi.\n"
-        f"3. Highlight critical statutory bars or evidentiary rules (e.g., standard of proof, condonation under s.14, co-respondent joinder under s.11, two-year desertion threshold).\n"
-        f"Keep the tone objective, structured, and lawyer-grade."
+        f"You are an authoritative Indian legal precedent researcher specializing in the Indian Divorce Act, 1869 (Christian matrimonial law).\n"
+        f"User Query / Factual Scenario: \"{query}\"\n{case_context}\n\n"
+        f"Provide a concise, strictly grounded precedent assessment:\n"
+        f"1. Applicable Statutory Provision & Grounds: State the exact applicable sub-clause of Section 10 (or relevant section like 10A, 19, etc.) of the Indian Divorce Act, 1869, and whether relief can be granted on these facts.\n"
+        f"2. Leading Reported Precedents: Cite 2 to 3 real, reported High Court or Supreme Court precedents directly on point (by case name and year), explaining the core ratio decidendi.\n"
+        f"3. Evidentiary Standard & Essential Legal Ingredients: State the specific burden of proof and statutory requirements necessary to establish this specific ground (do NOT discuss irrelevant fault grounds like desertion or adultery unless directly raised by the query).\n"
+        f"Keep the answer concise, objective, authoritative, lawyer-grade, and strictly bound to the applicable ground."
     )
 
     payload = {
         "model": "parallel",
         "input": prompt,
+        "temperature": 0.15,
     }
 
     try:
